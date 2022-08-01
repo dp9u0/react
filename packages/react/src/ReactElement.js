@@ -6,10 +6,10 @@
  */
 
 import getComponentNameFromType from 'shared/getComponentNameFromType';
-import {REACT_ELEMENT_TYPE} from 'shared/ReactSymbols';
+import { REACT_ELEMENT_TYPE } from 'shared/ReactSymbols';
 import assign from 'shared/assign';
 import hasOwnProperty from 'shared/hasOwnProperty';
-import {checkKeyStringCoercion} from 'shared/CheckStringCoercion';
+import { checkKeyStringCoercion } from 'shared/CheckStringCoercion';
 
 import ReactCurrentOwner from './ReactCurrentOwner';
 
@@ -53,15 +53,15 @@ function hasValidKey(config) {
 }
 
 function defineKeyPropWarningGetter(props, displayName) {
-  const warnAboutAccessingKey = function() {
+  const warnAboutAccessingKey = function () {
     if (__DEV__) {
       if (!specialPropKeyWarningShown) {
         specialPropKeyWarningShown = true;
         console.error(
           '%s: `key` is not a prop. Trying to access it will result ' +
-            'in `undefined` being returned. If you need to access the same ' +
-            'value within the child component, you should pass it as a different ' +
-            'prop. (https://reactjs.org/link/special-props)',
+          'in `undefined` being returned. If you need to access the same ' +
+          'value within the child component, you should pass it as a different ' +
+          'prop. (https://reactjs.org/link/special-props)',
           displayName,
         );
       }
@@ -75,15 +75,15 @@ function defineKeyPropWarningGetter(props, displayName) {
 }
 
 function defineRefPropWarningGetter(props, displayName) {
-  const warnAboutAccessingRef = function() {
+  const warnAboutAccessingRef = function () {
     if (__DEV__) {
       if (!specialPropRefWarningShown) {
         specialPropRefWarningShown = true;
         console.error(
           '%s: `ref` is not a prop. Trying to access it will result ' +
-            'in `undefined` being returned. If you need to access the same ' +
-            'value within the child component, you should pass it as a different ' +
-            'prop. (https://reactjs.org/link/special-props)',
+          'in `undefined` being returned. If you need to access the same ' +
+          'value within the child component, you should pass it as a different ' +
+          'prop. (https://reactjs.org/link/special-props)',
           displayName,
         );
       }
@@ -111,11 +111,11 @@ function warnIfStringRefCannotBeAutoConverted(config) {
       if (!didWarnAboutStringRefs[componentName]) {
         console.error(
           'Component "%s" contains the string ref "%s". ' +
-            'Support for string refs will be removed in a future major release. ' +
-            'This case cannot be automatically converted to an arrow function. ' +
-            'We ask you to manually fix this case by using useRef() or createRef() instead. ' +
-            'Learn more about using refs safely here: ' +
-            'https://reactjs.org/link/strict-mode-string-ref',
+          'Support for string refs will be removed in a future major release. ' +
+          'This case cannot be automatically converted to an arrow function. ' +
+          'We ask you to manually fix this case by using useRef() or createRef() instead. ' +
+          'Learn more about using refs safely here: ' +
+          'https://reactjs.org/link/strict-mode-string-ref',
           componentName,
           config.ref,
         );
@@ -145,7 +145,7 @@ function warnIfStringRefCannotBeAutoConverted(config) {
  * indicating filename, line number, and/or other information.
  * @internal
  */
-const ReactElement = function(type, key, ref, self, source, owner, props) {
+const ReactElement = function (type, key, ref, self, source, owner, props) {
   const element = {
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
@@ -375,6 +375,7 @@ export function createElement(type, config, children) {
       ref = config.ref;
 
       if (__DEV__) {
+        // NOTE: String Ref 警告
         warnIfStringRefCannotBeAutoConverted(config);
       }
     }
@@ -391,7 +392,7 @@ export function createElement(type, config, children) {
     for (propName in config) {
       if (
         hasOwnProperty.call(config, propName) &&
-        !RESERVED_PROPS.hasOwnProperty(propName)
+        !RESERVED_PROPS.hasOwnProperty(propName) // NOTE: 跳过 key ref __source __self
       ) {
         props[propName] = config[propName];
       }
@@ -402,8 +403,10 @@ export function createElement(type, config, children) {
   // the newly allocated props object.
   const childrenLength = arguments.length - 2;
   if (childrenLength === 1) {
+    // NOTE: 如果只有一个 children 直接赋值给 props.children
     props.children = children;
   } else if (childrenLength > 1) {
+    // 否则 创建 数组 复制给 props.children
     const childArray = Array(childrenLength);
     for (let i = 0; i < childrenLength; i++) {
       childArray[i] = arguments[i + 2];
