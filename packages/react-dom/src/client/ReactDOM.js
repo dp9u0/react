@@ -547,7 +547,6 @@ function legacyRenderSubtreeIntoContainer(
   if (__DEV__) {
     topLevelUpdateWarnings(container);
   }
-
   // TODO: Without `any` type, Flow says "Property cannot be accessed on any
   // member of intersection type." Whyyyyyy.
   let root: Root = (container._reactRootContainer: any);
