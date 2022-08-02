@@ -862,7 +862,11 @@
   }
 
   function forceStoreRerender(fiber) {
-    scheduleUpdateOnFiber(fiber, SyncLane, NoTimestamp);
+    var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
+
+    if (root !== null) {
+      scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+    }
   }
 
   function mountState(initialState) {
@@ -1336,11 +1340,14 @@
         case CacheComponent:
         case HostRoot:
           {
+            // Schedule an update on the cache boundary to trigger a refresh.
             var lane = requestUpdateLane(provider);
             var eventTime = requestEventTime();
-            var root = scheduleUpdateOnFiber(provider, lane, eventTime);
+            var refreshUpdate = createUpdate(eventTime, lane);
+            var root = enqueueUpdate(provider, refreshUpdate, lane);
 
             if (root !== null) {
+              scheduleUpdateOnFiber(root, provider, lane, eventTime);
               entangleTransitions(root, provider, lane);
             } // TODO: If a refresh never commits, the new cache created here must be
             // released. A simple case is start refreshing a cache boundary, but then
@@ -1353,15 +1360,12 @@
               // Seed the cache with the value passed by the caller. This could be
               // from a server mutation, or it could be a streaming response.
               seededCache.data.set(seedKey, seedValue);
-            } // Schedule an update on the cache boundary to trigger a refresh.
+            }
 
-
-            var refreshUpdate = createUpdate(eventTime, lane);
             var payload = {
               cache: seededCache
             };
             refreshUpdate.payload = payload;
-            enqueueUpdate(provider, refreshUpdate);
             return;
           }
       }
@@ -1390,11 +1394,11 @@
     if (isRenderPhaseUpdate(fiber)) {
       enqueueRenderPhaseUpdate(queue, update);
     } else {
-      enqueueUpdate$1(fiber, queue, update);
-      var eventTime = requestEventTime();
-      var root = scheduleUpdateOnFiber(fiber, lane, eventTime);
+      var root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
 
       if (root !== null) {
+        var eventTime = requestEventTime();
+        scheduleUpdateOnFiber(root, fiber, lane, eventTime);
         entangleTransitionUpdate(root, queue, lane);
       }
     }
@@ -1421,7 +1425,6 @@
     if (isRenderPhaseUpdate(fiber)) {
       enqueueRenderPhaseUpdate(queue, update);
     } else {
-      enqueueUpdate$1(fiber, queue, update);
       var alternate = fiber.alternate;
 
       if (fiber.lanes === NoLanes && (alternate === null || alternate.lanes === NoLanes)) {
@@ -1453,6 +1456,8 @@
               // It's still possible that we'll need to rebase this update later,
               // if the component re-renders for a different reason and by that
               // time the reducer has changed.
+              // TODO: Do we still need to entangle transitions in this case?
+              enqueueConcurrentHookUpdateAndEagerlyBailout(fiber, queue, update, lane);
               return;
             }
           } catch (error) {// Suppress the error. It will throw again in the render phase.
@@ -1464,10 +1469,11 @@
         }
       }
 
-      var eventTime = requestEventTime();
-      var root = scheduleUpdateOnFiber(fiber, lane, eventTime);
+      var root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
 
       if (root !== null) {
+        var eventTime = requestEventTime();
+        scheduleUpdateOnFiber(root, fiber, lane, eventTime);
         entangleTransitionUpdate(root, queue, lane);
       }
     }
@@ -1496,38 +1502,8 @@
     }
 
     queue.pending = update;
-  }
+  } // TODO: Move to ReactFiberConcurrentUpdates?
 
-  function enqueueUpdate$1(fiber, queue, update, lane) {
-    if (isInterleavedUpdate(fiber)) {
-      var interleaved = queue.interleaved;
-
-      if (interleaved === null) {
-        // This is the first update. Create a circular list.
-        update.next = update; // At the end of the current render, this queue's interleaved updates will
-        // be transferred to the pending queue.
-
-        pushInterleavedQueue(queue);
-      } else {
-        update.next = interleaved.next;
-        interleaved.next = update;
-      }
-
-      queue.interleaved = update;
-    } else {
-      var pending = queue.pending;
-
-      if (pending === null) {
-        // This is the first update. Create a circular list.
-        update.next = update;
-      } else {
-        update.next = pending.next;
-        pending.next = update;
-      }
-
-      queue.pending = update;
-    }
-  }
 
   function entangleTransitionUpdate(root, queue, lane) {
     if (isTransitionLane(lane)) {

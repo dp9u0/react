@@ -1,5 +1,5 @@
 function App() {
-    return <div>Hello, React Source Code!</div>
+  return <div>Hello, React Source Code!</div>
 }
 
-ReactDOM.render(<App/>, document.querySelector('#app'))
+ReactDOM.render(<App />, document.querySelector('#app'))

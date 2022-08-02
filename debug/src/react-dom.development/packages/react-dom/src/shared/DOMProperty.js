@@ -110,6 +110,12 @@
     }
 
     if (isCustomComponentTag) {
+      {
+        if (value === false) {
+          return true;
+        }
+      }
+
       return false;
     }
 

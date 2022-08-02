@@ -83,7 +83,7 @@
    * attributes have multiple equivalent values.
    */
 
-  function getValueForAttribute(node, name, expected) {
+  function getValueForAttribute(node, name, expected, isCustomComponentTag) {
     {
       if (!isAttributeNameSafe(name)) {
         return;
@@ -94,6 +94,12 @@
       }
 
       var value = node.getAttribute(name);
+
+      {
+        if (isCustomComponentTag && value === '') {
+          return true;
+        }
+      }
 
       {
         checkAttributeStringCoercion(expected, name);
@@ -156,6 +162,12 @@
 
     if (shouldRemoveAttribute(name, value, propertyInfo, isCustomComponentTag)) {
       value = null;
+    }
+
+    {
+      if (isCustomComponentTag && value === true) {
+        value = '';
+      }
     } // If the prop isn't in the special list, treat it as a simple attribute.
 
 

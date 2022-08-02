@@ -863,7 +863,7 @@
         } else if (isCustomComponentTag && !enableCustomElementPropertySupport) {
           // $FlowFixMe - Should be inferred as not undefined.
           extraAttributeNames.delete(propKey.toLowerCase());
-          serverValue = getValueForAttribute(domElement, propKey, nextProp);
+          serverValue = getValueForAttribute(domElement, propKey, nextProp, isCustomComponentTag);
 
           if (nextProp !== serverValue) {
             warnForPropDifference(propKey, serverValue, nextProp);
@@ -903,7 +903,7 @@
               extraAttributeNames.delete(propKey);
             }
 
-            serverValue = getValueForAttribute(domElement, propKey, nextProp);
+            serverValue = getValueForAttribute(domElement, propKey, nextProp, isCustomComponentTag);
           }
 
           var dontWarnCustomElement =  isCustomComponentTag && (typeof nextProp === 'function' || typeof nextProp === 'object');

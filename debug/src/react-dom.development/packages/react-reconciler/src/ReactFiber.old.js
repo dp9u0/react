@@ -502,7 +502,9 @@
     var fiber = createFiber(OffscreenComponent, pendingProps, key, mode);
     fiber.elementType = REACT_OFFSCREEN_TYPE;
     fiber.lanes = lanes;
-    var primaryChildInstance = {};
+    var primaryChildInstance = {
+      isHidden: false
+    };
     fiber.stateNode = primaryChildInstance;
     return fiber;
   }

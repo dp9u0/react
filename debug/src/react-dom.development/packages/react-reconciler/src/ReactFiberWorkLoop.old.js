@@ -206,19 +206,13 @@
     return claimNextRetryLane();
   }
 
-  function scheduleUpdateOnFiber(fiber, lane, eventTime) {
+  function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
     checkForNestedUpdates();
 
     {
       if (isRunningInsertionEffect) {
         error('useInsertionEffect must not schedule updates.');
       }
-    }
-
-    var root = markUpdateLaneFromFiberToRoot(fiber, lane);
-
-    if (root === null) {
-      return null;
     }
 
     {
@@ -249,7 +243,6 @@
       warnIfUpdatesNotWrappedWithActDEV(fiber);
 
       if (root === workInProgressRoot) {
-        // TODO: Consolidate with `isInterleavedUpdate` check
         // Received an update to a tree that's in the middle of rendering. Mark
         // that there was an interleaved update work on this root. Unless the
         // `deferRenderPhaseUpdateToNextBatch` flag is off and this is a render
@@ -283,8 +276,6 @@
         flushSyncCallbacksOnlyInLegacyMode();
       }
     }
-
-    return root;
   }
   function scheduleInitialHydrationOnRoot(root, lane, eventTime) {
     // This is a special fork of scheduleUpdateOnFiber that is only used to
@@ -300,70 +291,13 @@
     current.lanes = lane;
     markRootUpdated(root, lane, eventTime);
     ensureRootIsScheduled(root, eventTime);
-  } // This is split into a separate function so we can mark a fiber with pending
-  // work without treating it as a typical update that originates from an event;
-  // e.g. retrying a Suspense boundary isn't an update, but it does schedule work
-  // on a fiber.
-
-  function markUpdateLaneFromFiberToRoot(sourceFiber, lane) {
-    // Update the source fiber's lanes
-    sourceFiber.lanes = mergeLanes(sourceFiber.lanes, lane);
-    var alternate = sourceFiber.alternate;
-
-    if (alternate !== null) {
-      alternate.lanes = mergeLanes(alternate.lanes, lane);
-    }
-
-    {
-      if (alternate === null && (sourceFiber.flags & (Placement | Hydrating)) !== NoFlags) {
-        warnAboutUpdateOnNotYetMountedFiberInDEV(sourceFiber);
-      }
-    } // Walk the parent path to the root and update the child lanes.
-
-
-    var node = sourceFiber;
-    var parent = sourceFiber.return;
-
-    while (parent !== null) {
-      parent.childLanes = mergeLanes(parent.childLanes, lane);
-      alternate = parent.alternate;
-
-      if (alternate !== null) {
-        alternate.childLanes = mergeLanes(alternate.childLanes, lane);
-      } else {
-        {
-          if ((parent.flags & (Placement | Hydrating)) !== NoFlags) {
-            warnAboutUpdateOnNotYetMountedFiberInDEV(sourceFiber);
-          }
-        }
-      }
-
-      node = parent;
-      parent = parent.return;
-    }
-
-    if (node.tag === HostRoot) {
-      var root = node.stateNode;
-      return root;
-    } else {
-      return null;
-    }
   }
-
-  function isInterleavedUpdate(fiber, lane) {
-    return (// TODO: Optimize slightly by comparing to root that fiber belongs to.
-      // Requires some refactoring. Not a big deal though since it's rare for
-      // concurrent apps to have more than a single root.
-      (workInProgressRoot !== null || // If the interleaved updates queue hasn't been cleared yet, then
-      // we should treat this as an interleaved update, too. This is also a
-      // defensive coding measure in case a new update comes in between when
-      // rendering has finished and when the interleaved updates are transferred
-      // to the main queue.
-      hasInterleavedUpdates()) && (fiber.mode & ConcurrentMode) !== NoMode && ( // If this is a render phase update (i.e. UNSAFE_componentWillReceiveProps),
-      // then don't treat this as an interleaved update. This pattern is
-      // accompanied by a warning but we haven't fully deprecated it yet. We can
-      // remove once the deferRenderPhaseUpdateToNextBatch flag is enabled.
-       (executionContext & RenderContext) === NoContext)
+  function isUnsafeClassRenderPhaseUpdate(fiber) {
+    // Check if this is a render phase update. Only called by class components,
+    // which special (deprecated) behavior for UNSAFE_componentWillReceive props.
+    return (// TODO: Remove outdated deferRenderPhaseUpdateToNextBatch experiment. We
+      // decided not to enable it.
+       (executionContext & RenderContext) !== NoContext
     );
   } // Use this function to schedule a task for a root. There's only one task per
   // root; if a task was already scheduled, we'll check to make sure the priority
@@ -446,9 +380,9 @@
             // https://github.com/facebook/react/issues/22459
             // We don't support running callbacks in the middle of render
             // or commit so we need to check against that.
-            if (executionContext === NoContext) {
-              // It's only safe to do this conditionally because we always
-              // check for pending work before we exit the task.
+            if ((executionContext & (RenderContext | CommitContext)) === NoContext) {
+              // Note that this would still prematurely flush the callbacks
+              // if this happens outside render or commit phase (e.g. in an event).
               flushSyncCallbacks();
             }
           });
@@ -1052,7 +986,7 @@
     workInProgressRootPingedLanes = NoLanes;
     workInProgressRootConcurrentErrors = null;
     workInProgressRootRecoverableErrors = null;
-    enqueueInterleavedUpdates();
+    finishQueueingConcurrentUpdates();
 
     {
       ReactStrictModeWarnings.discardPendingWarnings();
@@ -1712,7 +1646,12 @@
 
       for (var i = 0; i < recoverableErrors.length; i++) {
         var recoverableError = recoverableErrors[i];
-        onRecoverableError(recoverableError);
+        var componentStack = recoverableError.stack;
+        var digest = recoverableError.digest;
+        onRecoverableError(recoverableError.value, {
+          componentStack: componentStack,
+          digest: digest
+        });
       }
     }
 
@@ -1939,11 +1878,10 @@
   var onUncaughtError = prepareToThrowUncaughtError;
 
   function captureCommitPhaseErrorOnRoot(rootFiber, sourceFiber, error) {
-    var errorInfo = createCapturedValue(error, sourceFiber);
+    var errorInfo = createCapturedValueAtFiber(error, sourceFiber);
     var update = createRootErrorUpdate(rootFiber, errorInfo, SyncLane);
-    enqueueUpdate(rootFiber, update);
+    var root = enqueueUpdate(rootFiber, update, SyncLane);
     var eventTime = requestEventTime();
-    var root = markUpdateLaneFromFiberToRoot(rootFiber, SyncLane);
 
     if (root !== null) {
       markRootUpdated(root, SyncLane, eventTime);
@@ -1979,11 +1917,10 @@
         var instance = fiber.stateNode;
 
         if (typeof ctor.getDerivedStateFromError === 'function' || typeof instance.componentDidCatch === 'function' && !isAlreadyFailedLegacyErrorBoundary(instance)) {
-          var errorInfo = createCapturedValue(error$1, sourceFiber);
+          var errorInfo = createCapturedValueAtFiber(error$1, sourceFiber);
           var update = createClassErrorUpdate(fiber, errorInfo, SyncLane);
-          enqueueUpdate(fiber, update);
+          var root = enqueueUpdate(fiber, update, SyncLane);
           var eventTime = requestEventTime();
-          var root = markUpdateLaneFromFiberToRoot(fiber, SyncLane);
 
           if (root !== null) {
             markRootUpdated(root, SyncLane, eventTime);
@@ -2053,7 +1990,7 @@
 
 
     var eventTime = requestEventTime();
-    var root = markUpdateLaneFromFiberToRoot(boundaryFiber, retryLane);
+    var root = enqueueConcurrentRenderForLane(boundaryFiber, retryLane);
 
     if (root !== null) {
       markRootUpdated(root, retryLane, eventTime);
@@ -2193,7 +2130,6 @@
   }
 
   var didWarnStateUpdateForNotYetMountedComponent = null;
-
   function warnAboutUpdateOnNotYetMountedFiberInDEV(fiber) {
     {
       if ((executionContext & RenderContext) !== NoContext) {
@@ -2241,7 +2177,6 @@
       }
     }
   }
-
   var beginWork$1;
 
   {
@@ -2258,8 +2193,9 @@
       try {
         return beginWork(current, unitOfWork, lanes);
       } catch (originalError) {
-        if (originalError !== null && typeof originalError === 'object' && typeof originalError.then === 'function') {
-          // Don't replay promises. Treat everything else like an error.
+        if (didSuspendOrErrorWhileHydratingDEV() || originalError !== null && typeof originalError === 'object' && typeof originalError.then === 'function') {
+          // Don't replay promises.
+          // Don't replay errors if we are hydrating and have already suspended or handled an error
           throw originalError;
         } // Keep this code in sync with handleError; any changes here must have
         // corresponding changes there.

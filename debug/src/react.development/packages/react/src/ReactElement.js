@@ -181,6 +181,7 @@
         ref = config.ref;
 
         {
+          // NOTE: String Ref 警告
           warnIfStringRefCannotBeAutoConverted(config);
         }
       }
@@ -197,9 +198,10 @@
       source = config.__source === undefined ? null : config.__source; // Remaining properties are added to a new props object
 
       for (propName in config) {
-        if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
-          props[propName] = config[propName];
-        }
+        if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName) // NOTE: 跳过 key ref __source __self
+        ) {
+            props[propName] = config[propName];
+          }
       }
     } // Children can be more than one argument, and those are transferred onto
     // the newly allocated props object.
@@ -208,8 +210,10 @@
     var childrenLength = arguments.length - 2;
 
     if (childrenLength === 1) {
+      // NOTE: 如果只有一个 children 直接赋值给 props.children
       props.children = children;
     } else if (childrenLength > 1) {
+      // 否则 创建 数组 复制给 props.children
       var childArray = Array(childrenLength);
 
       for (var i = 0; i < childrenLength; i++) {

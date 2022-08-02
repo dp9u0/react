@@ -60,27 +60,22 @@
 
     if (updateQueue === null) {
       // Only occurs if the fiber has been unmounted.
-      return;
+      return null;
     }
 
     var sharedQueue = updateQueue.shared;
 
-    if (isInterleavedUpdate(fiber)) {
-      var interleaved = sharedQueue.interleaved;
+    {
+      if (currentlyProcessingQueue === sharedQueue && !didWarnUpdateInsideUpdate) {
+        error('An update (setState, replaceState, or forceUpdate) was scheduled ' + 'from inside an update function. Update functions should be pure, ' + 'with zero side-effects. Consider using componentDidUpdate or a ' + 'callback.');
 
-      if (interleaved === null) {
-        // This is the first update. Create a circular list.
-        update.next = update; // At the end of the current render, this queue's interleaved updates will
-        // be transferred to the pending queue.
-
-        pushInterleavedQueue(sharedQueue);
-      } else {
-        update.next = interleaved.next;
-        interleaved.next = update;
+        didWarnUpdateInsideUpdate = true;
       }
+    }
 
-      sharedQueue.interleaved = update;
-    } else {
+    if (isUnsafeClassRenderPhaseUpdate()) {
+      // This is an unsafe render phase update. Add directly to the update
+      // queue so we can process it immediately during the current render.
       var pending = sharedQueue.pending;
 
       if (pending === null) {
@@ -91,15 +86,14 @@
         pending.next = update;
       }
 
-      sharedQueue.pending = update;
-    }
+      sharedQueue.pending = update; // Update the childLanes even though we're most likely already rendering
+      // this fiber. This is for backwards compatibility in the case where you
+      // update a different component during render phase than the one that is
+      // currently renderings (a pattern that is accompanied by a warning).
 
-    {
-      if (currentlyProcessingQueue === sharedQueue && !didWarnUpdateInsideUpdate) {
-        error('An update (setState, replaceState, or forceUpdate) was scheduled ' + 'from inside an update function. Update functions should be pure, ' + 'with zero side-effects. Consider using componentDidUpdate or a ' + 'callback.');
-
-        didWarnUpdateInsideUpdate = true;
-      }
+      return unsafe_markUpdateLaneFromFiberToRoot(fiber, lane);
+    } else {
+      return enqueueConcurrentClassUpdate(fiber, sharedQueue, update, lane);
     }
   }
   function entangleTransitions(root, fiber, lane) {

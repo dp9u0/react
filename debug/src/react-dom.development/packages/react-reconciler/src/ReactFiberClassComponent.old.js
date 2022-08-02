@@ -112,10 +112,10 @@
         update.callback = callback;
       }
 
-      enqueueUpdate(fiber, update);
-      var root = scheduleUpdateOnFiber(fiber, lane, eventTime);
+      var root = enqueueUpdate(fiber, update, lane);
 
       if (root !== null) {
+        scheduleUpdateOnFiber(root, fiber, lane, eventTime);
         entangleTransitions(root, fiber, lane);
       }
 
@@ -139,10 +139,10 @@
         update.callback = callback;
       }
 
-      enqueueUpdate(fiber, update);
-      var root = scheduleUpdateOnFiber(fiber, lane, eventTime);
+      var root = enqueueUpdate(fiber, update, lane);
 
       if (root !== null) {
+        scheduleUpdateOnFiber(root, fiber, lane, eventTime);
         entangleTransitions(root, fiber, lane);
       }
 
@@ -165,10 +165,10 @@
         update.callback = callback;
       }
 
-      enqueueUpdate(fiber, update);
-      var root = scheduleUpdateOnFiber(fiber, lane, eventTime);
+      var root = enqueueUpdate(fiber, update, lane);
 
       if (root !== null) {
+        scheduleUpdateOnFiber(root, fiber, lane, eventTime);
         entangleTransitions(root, fiber, lane);
       }
 

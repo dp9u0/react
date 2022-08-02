@@ -673,6 +673,7 @@
         case ScopeComponent:
         case OffscreenComponent:
         case LegacyHiddenComponent:
+        case TracingMarkerComponent:
           {
             break;
           }
@@ -1651,8 +1652,12 @@
           var offscreenFiber = finishedWork.child;
 
           if (offscreenFiber.flags & Visibility) {
+            var offscreenInstance = offscreenFiber.stateNode;
             var newState = offscreenFiber.memoizedState;
-            var isHidden = newState !== null;
+            var isHidden = newState !== null; // Track the current state on the Offscreen instance so we can
+            // read it during an event
+
+            offscreenInstance.isHidden = isHidden;
 
             if (isHidden) {
               var wasHidden = offscreenFiber.alternate !== null && offscreenFiber.alternate.memoizedState !== null;
@@ -1697,17 +1702,15 @@
           commitReconciliationEffects(finishedWork);
 
           if (flags & Visibility) {
+            var _offscreenInstance = finishedWork.stateNode;
             var _newState = finishedWork.memoizedState;
 
             var _isHidden = _newState !== null;
 
-            var offscreenBoundary = finishedWork;
+            var offscreenBoundary = finishedWork; // Track the current state on the Offscreen instance so we can
+            // read it during an event
 
-            {
-              // TODO: This needs to run whenever there's an insertion or update
-              // inside a hidden Offscreen tree.
-              hideOrUnhideAllChildren(offscreenBoundary, _isHidden);
-            }
+            _offscreenInstance.isHidden = _isHidden;
 
             {
               if (_isHidden) {
@@ -1724,6 +1727,12 @@
                   }
                 }
               }
+            }
+
+            {
+              // TODO: This needs to run whenever there's an insertion or update
+              // inside a hidden Offscreen tree.
+              hideOrUnhideAllChildren(offscreenBoundary, _isHidden);
             }
           }
 

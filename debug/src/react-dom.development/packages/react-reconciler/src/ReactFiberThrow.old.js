@@ -234,7 +234,7 @@
             // prevent a bail out.
             var update = createUpdate(NoTimestamp, SyncLane);
             update.tag = ForceUpdate;
-            enqueueUpdate(sourceFiber, update);
+            enqueueUpdate(sourceFiber, update, SyncLane);
           }
         } // The source fiber did not complete. Mark it with Sync priority to
         // indicate that it still has pending work.
@@ -374,17 +374,17 @@
           markSuspenseBoundaryShouldCapture(_suspenseBoundary, returnFiber, sourceFiber, root, rootRenderLanes); // Even though the user may not be affected by this error, we should
           // still log it so it can be fixed.
 
-          queueHydrationError(value);
+          queueHydrationError(createCapturedValueAtFiber(value, sourceFiber));
           return;
         }
       }
-    } // We didn't find a boundary that could handle this type of exception. Start
+    }
+
+    value = createCapturedValueAtFiber(value, sourceFiber);
+    renderDidError(value); // We didn't find a boundary that could handle this type of exception. Start
     // over and traverse parent path again, this time treating the exception
     // as an error.
 
-
-    renderDidError(value);
-    value = createCapturedValue(value, sourceFiber);
     var workInProgress = returnFiber;
 
     do {

@@ -253,7 +253,11 @@
       }
 
       if (needsRemount || needsRender) {
-        scheduleUpdateOnFiber(fiber, SyncLane, NoTimestamp);
+        var _root = enqueueConcurrentRenderForLane(fiber, SyncLane);
+
+        if (_root !== null) {
+          scheduleUpdateOnFiber(_root, fiber, SyncLane, NoTimestamp);
+        }
       }
 
       if (child !== null && !needsRemount) {

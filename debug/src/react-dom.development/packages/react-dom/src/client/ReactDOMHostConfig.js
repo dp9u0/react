@@ -325,10 +325,8 @@
     if (container.nodeType === ELEMENT_NODE) {
       container.textContent = '';
     } else if (container.nodeType === DOCUMENT_NODE) {
-      var body = container.body;
-
-      if (body != null) {
-        body.textContent = '';
+      if (container.documentElement) {
+        container.removeChild(container.documentElement);
       }
     }
   } // -------------------
@@ -363,6 +361,38 @@
   }
   function isSuspenseInstanceFallback(instance) {
     return instance.data === SUSPENSE_FALLBACK_START_DATA;
+  }
+  function getSuspenseInstanceFallbackErrorDetails(instance) {
+    var dataset = instance.nextSibling && instance.nextSibling.dataset;
+    var digest, message, stack;
+
+    if (dataset) {
+      digest = dataset.dgst;
+
+      {
+        message = dataset.msg;
+        stack = dataset.stck;
+      }
+    }
+
+    {
+      return {
+        message: message,
+        digest: digest,
+        stack: stack
+      };
+    } // let value = {message: undefined, hash: undefined};
+    // const nextSibling = instance.nextSibling;
+    // if (nextSibling) {
+    //   const dataset = ((nextSibling: any): HTMLTemplateElement).dataset;
+    //   value.message = dataset.msg;
+    //   value.hash = dataset.hash;
+    //   if (true) {
+    //     value.stack = dataset.stack;
+    //   }
+    // }
+    // return value;
+
   }
   function registerSuspenseInstanceRetry(instance, callback) {
     instance._reactRetry = callback;

@@ -22,6 +22,11 @@
       didSuspendOrErrorDEV = true;
     }
   }
+  function didSuspendOrErrorWhileHydratingDEV() {
+    {
+      return didSuspendOrErrorDEV;
+    }
+  }
 
   function enterHydrationState(fiber) {
 

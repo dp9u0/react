@@ -97,7 +97,7 @@
     var lane = requestUpdateLane(current);
     var update = createUpdate(eventTime, lane);
     update.callback = callback !== undefined && callback !== null ? callback : null;
-    enqueueUpdate(current, update);
+    enqueueUpdate(current, update, lane);
     scheduleInitialHydrationOnRoot(root, lane, eventTime);
     return root;
   }
@@ -148,10 +148,10 @@
       update.callback = callback;
     }
 
-    enqueueUpdate(current$1, update);
-    var root = scheduleUpdateOnFiber(current$1, lane, eventTime);
+    var root = enqueueUpdate(current$1, update, lane);
 
     if (root !== null) {
+      scheduleUpdateOnFiber(root, current$1, lane, eventTime);
       entangleTransitions(root, current$1, lane);
     }
 
@@ -175,27 +175,35 @@
   function attemptSynchronousHydration$1(fiber) {
     switch (fiber.tag) {
       case HostRoot:
-        var root = fiber.stateNode;
+        {
+          var root = fiber.stateNode;
 
-        if (isRootDehydrated(root)) {
-          // Flush the first scheduled "update".
-          var lanes = getHighestPriorityPendingLanes(root);
-          flushRoot(root, lanes);
+          if (isRootDehydrated(root)) {
+            // Flush the first scheduled "update".
+            var lanes = getHighestPriorityPendingLanes(root);
+            flushRoot(root, lanes);
+          }
+
+          break;
         }
 
-        break;
-
       case SuspenseComponent:
-        var eventTime = requestEventTime();
-        flushSync(function () {
-          return scheduleUpdateOnFiber(fiber, SyncLane, eventTime);
-        }); // If we're still blocked after this, we need to increase
-        // the priority of any promises resolving within this
-        // boundary so that they next attempt also has higher pri.
+        {
+          flushSync(function () {
+            var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
-        var retryLane = SyncLane;
-        markRetryLaneIfNotHydrated(fiber, retryLane);
-        break;
+            if (root !== null) {
+              var eventTime = requestEventTime();
+              scheduleUpdateOnFiber(root, fiber, SyncLane, eventTime);
+            }
+          }); // If we're still blocked after this, we need to increase
+          // the priority of any promises resolving within this
+          // boundary so that they next attempt also has higher pri.
+
+          var retryLane = SyncLane;
+          markRetryLaneIfNotHydrated(fiber, retryLane);
+          break;
+        }
     }
   }
 
@@ -225,9 +233,14 @@
       return;
     }
 
-    var eventTime = requestEventTime();
     var lane = SelectiveHydrationLane;
-    scheduleUpdateOnFiber(fiber, lane, eventTime);
+    var root = enqueueConcurrentRenderForLane(fiber, lane);
+
+    if (root !== null) {
+      var eventTime = requestEventTime();
+      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+    }
+
     markRetryLaneIfNotHydrated(fiber, lane);
   }
   function attemptHydrationAtCurrentPriority$1(fiber) {
@@ -237,9 +250,14 @@
       return;
     }
 
-    var eventTime = requestEventTime();
     var lane = requestUpdateLane(fiber);
-    scheduleUpdateOnFiber(fiber, lane, eventTime);
+    var root = enqueueConcurrentRenderForLane(fiber, lane);
+
+    if (root !== null) {
+      var eventTime = requestEventTime();
+      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+    }
+
     markRetryLaneIfNotHydrated(fiber, lane);
   }
   function findHostInstanceWithNoPortals(fiber) {
@@ -385,7 +403,11 @@
         // Shallow cloning props works as a workaround for now to bypass the bailout check.
 
         fiber.memoizedProps = assign({}, fiber.memoizedProps);
-        scheduleUpdateOnFiber(fiber, SyncLane, NoTimestamp);
+        var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
+
+        if (root !== null) {
+          scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        }
       }
     };
 
@@ -402,7 +424,11 @@
         // Shallow cloning props works as a workaround for now to bypass the bailout check.
 
         fiber.memoizedProps = assign({}, fiber.memoizedProps);
-        scheduleUpdateOnFiber(fiber, SyncLane, NoTimestamp);
+        var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
+
+        if (root !== null) {
+          scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        }
       }
     };
 
@@ -419,7 +445,11 @@
         // Shallow cloning props works as a workaround for now to bypass the bailout check.
 
         fiber.memoizedProps = assign({}, fiber.memoizedProps);
-        scheduleUpdateOnFiber(fiber, SyncLane, NoTimestamp);
+        var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
+
+        if (root !== null) {
+          scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        }
       }
     }; // Support DevTools props for function components, forwardRef, memo, host components, etc.
 
@@ -431,7 +461,11 @@
         fiber.alternate.pendingProps = fiber.pendingProps;
       }
 
-      scheduleUpdateOnFiber(fiber, SyncLane, NoTimestamp);
+      var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
+
+      if (root !== null) {
+        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      }
     };
 
     overridePropsDeletePath = function (fiber, path) {
@@ -441,7 +475,11 @@
         fiber.alternate.pendingProps = fiber.pendingProps;
       }
 
-      scheduleUpdateOnFiber(fiber, SyncLane, NoTimestamp);
+      var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
+
+      if (root !== null) {
+        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      }
     };
 
     overridePropsRenamePath = function (fiber, oldPath, newPath) {
@@ -451,11 +489,19 @@
         fiber.alternate.pendingProps = fiber.pendingProps;
       }
 
-      scheduleUpdateOnFiber(fiber, SyncLane, NoTimestamp);
+      var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
+
+      if (root !== null) {
+        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      }
     };
 
     scheduleUpdate = function (fiber) {
-      scheduleUpdateOnFiber(fiber, SyncLane, NoTimestamp);
+      var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
+
+      if (root !== null) {
+        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      }
     };
 
     setErrorHandler = function (newShouldErrorImpl) {
