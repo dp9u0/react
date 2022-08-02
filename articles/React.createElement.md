@@ -1,4 +1,4 @@
-# createElement
+# React.createElement
 
 源码参考 [ReactElement](../packages/react/src/ReactElement.js)
 
@@ -67,4 +67,3 @@ const ReactElement = function(type, key, ref, self, source, owner, props) {
     _owner: owner,
   };
 ```
-
