@@ -1,5 +1,53 @@
 # React.createElement
 
+## jsx vs React.createElement
+
+React.createElement 是我们最常用但是有最陌生的 api 了，如果我们一直使用 jsx 编写 react 代码，那么基本很少使用到 createElement。那是因为 bable 将 jsx 代码自动转换为 对 React.createElement 的调用。可以通过 babel.io 查看这一转换过程：
+
+```jsx
+const App = () =>
+(
+  <div>
+    <h1 id="title">Title</h1>
+    <a href="xxx">Jump</a>
+    <section>
+      <p>
+        Article
+      </p>
+      <Counter></Counter>
+    </section>
+  </div>
+);
+
+class Counter2 extends React.Component {
+  render() {
+    return (<div></div>)
+  }
+}
+
+const Counter = () => (<div></div>)
+```
+
+通过 babel 转换为 
+
+```js
+const App = () => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
+  id: "title"
+}, "Title"), /*#__PURE__*/React.createElement("a", {
+  href: "xxx"
+}, "Jump"), /*#__PURE__*/React.createElement("section", null, /*#__PURE__*/React.createElement("p", null, "Article"), /*#__PURE__*/React.createElement(Counter, null)));
+
+class Counter2 extends React.Component {
+  render() {
+    return /*#__PURE__*/React.createElement("div", null);
+  }
+}
+
+const Counter = () => /*#__PURE__*/React.createElement("div", null);
+```
+
+## React.createElemnet
+
 源码参考 [ReactElement](../packages/react/src/ReactElement.js)
 
 关于API: `function createElement(type, config, children){}`，参数：
@@ -67,3 +115,5 @@ const ReactElement = function(type, key, ref, self, source, owner, props) {
     _owner: owner,
   };
 ```
+
+关于 `$$typeof:` : 可以看到，ReactElement 中 `$$typeof` 的值为 REACT_ELEMENT_TYPE ，REACT_XXX_TYPE 是一系列 Symbol 声明（[Symbol声明](../packages/shared/ReactSymbols.js)）对于 react 提供的 createXXX ，如 createRef/createPortal/createContext 都返回类似 ReactElement 结构，都有一个 `$$typeof`，在 render 阶段通过 `$$typeof` 区分 element 类型。
