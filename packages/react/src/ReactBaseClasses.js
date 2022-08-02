@@ -140,6 +140,7 @@ function PureComponent(props, context, updater) {
 const pureComponentPrototype = (PureComponent.prototype = new ComponentDummy());
 pureComponentPrototype.constructor = PureComponent;
 // Avoid an extra prototype jump for these methods.
+// 避免查找 Component.prototype 上定义的方法 如 setState 等的方法的时候，额外一次原型链查找； assign 后可以直接在 PureComponent.prototype 找到
 assign(pureComponentPrototype, Component.prototype);
 pureComponentPrototype.isPureReactComponent = true;
 
