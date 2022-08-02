@@ -1,0 +1,5 @@
+# React.Component
+
+## Component
+
+## PureComponent

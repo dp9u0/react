@@ -6,6 +6,8 @@
 
 * [React Overview](./articles/overview.md)
 * [React.createElement](./articles/React.createElement.md)
+* [React.Component](./articles/React.Component.md)
+* [React.createRef](./articles/React.createRef.md)
 
 ## Render
 
