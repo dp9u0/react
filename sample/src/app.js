@@ -1,4 +1,4 @@
-import React from './react';
+import React from 'react';
 
 const FC = () => {
   return <div>this is a Function Components</div>
