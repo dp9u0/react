@@ -24,6 +24,7 @@ const Packaging = require('./packaging');
 const {asyncCopyTo, asyncRimRaf} = require('./utils');
 const codeFrame = require('babel-code-frame');
 const Wrappers = require('./wrappers');
+const sourcemap = true;
 
 // Errors in promises should be fatal.
 let loggedErrors = new Set();
@@ -169,7 +170,14 @@ function getRollupOutputOptions(
       freeze: !isProduction,
       interop: false,
       name: globalName,
-      sourcemap: false,
+      sourcemap: true,
+      sourcemapPathTransform(relativeSourcePath, sourcemapPath) {
+        const reactProjectPath = path.resolve(__dirname, '../', '../');
+        const pathes = relativeSourcePath.split(path.sep).filter(p => p !== '..').join('/');
+        const absolutePath = path.resolve(reactProjectPath, pathes);
+        console.log({ reactProjectPath, absolutePath });
+        return absolutePath;
+      },
     }
   );
 }
@@ -322,7 +330,7 @@ function getPlugins(
   const shouldStayReadable = isFBBundle || isRNBundle || forcePrettyOutput;
   return [
     // Extract error codes from invariant() messages into a file.
-    shouldExtractErrors && {
+    !sourcemap && shouldExtractErrors && {
       transform(source) {
         findAndRecordErrorCodes(source);
         return source;
@@ -337,13 +345,13 @@ function getPlugins(
       skip: externals,
     }),
     // Remove license headers from individual modules
-    stripBanner({
+    !sourcemap && stripBanner({
       exclude: 'node_modules/**/*',
     }),
     // Compile to ES5.
     babel(getBabelConfig(updateBabelOptions, bundleType)),
     // Remove 'use strict' from individual source files.
-    {
+    !sourcemap && {
       transform(source) {
         return source.replace(/['"]use strict['"']/g, '');
       },
@@ -358,7 +366,7 @@ function getPlugins(
     // We still need CommonJS for external deps like object-assign.
     commonjs(),
     // Apply dead code elimination and/or minification.
-    isProduction &&
+    !sourcemap && isProduction &&
       closure(
         Object.assign({}, closureOptions, {
           // Don't let it create global variables in the browser.
@@ -375,9 +383,9 @@ function getPlugins(
     // Note that this plugin must be called after closure applies DCE.
     isProduction && stripUnusedImports(pureExternalModules),
     // Add the whitespace back if necessary.
-    shouldStayReadable && prettier({parser: 'babylon'}),
+    !sourcemap && shouldStayReadable && prettier({parser: 'babylon'}),
     // License and haste headers, top-level `if` blocks.
-    {
+    !sourcemap && {
       transformBundle(source) {
         return Wrappers.wrapBundle(
           source,
