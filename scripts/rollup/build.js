@@ -24,7 +24,7 @@ const Packaging = require('./packaging');
 const {asyncRimRaf} = require('./utils');
 const codeFrame = require('babel-code-frame');
 const Wrappers = require('./wrappers');
-
+const sourcemap = true;
 const RELEASE_CHANNEL = process.env.RELEASE_CHANNEL;
 
 // Default to building in experimental mode. If the release channel is set via
@@ -234,7 +234,14 @@ function getRollupOutputOptions(
     freeze: !isProduction,
     interop: false,
     name: globalName,
-    sourcemap: false,
+    sourcemap: true,
+    sourcemapPathTransform(relativeSourcePath, sourcemapPath) {
+      const reactProjectPath = path.resolve(__dirname, '../', '../');
+      const pathes = relativeSourcePath.split(path.sep).filter(p => p !== '..').join('/');
+      const absolutePath = path.resolve(reactProjectPath, pathes);
+      console.log({ reactProjectPath, absolutePath });
+      return absolutePath;
+    },
     esModule: false,
   };
 }
@@ -360,7 +367,7 @@ function getPlugins(
   const shouldStayReadable = isFBWWWBundle || isRNBundle || forcePrettyOutput;
   return [
     // Extract error codes from invariant() messages into a file.
-    shouldExtractErrors && {
+    !sourcemap && shouldExtractErrors && {
       transform(source) {
         findAndRecordErrorCodes(source);
         return source;
@@ -375,7 +382,7 @@ function getPlugins(
       skip: externals,
     }),
     // Remove license headers from individual modules
-    stripBanner({
+    !sourcemap && stripBanner({
       exclude: 'node_modules/**/*',
     }),
     // Compile to ES2015.
@@ -389,7 +396,7 @@ function getPlugins(
       )
     ),
     // Remove 'use strict' from individual source files.
-    {
+    !sourcemap && {
       transform(source) {
         return source.replace(/['"]use strict["']/g, '');
       },
@@ -410,7 +417,7 @@ function getPlugins(
     // Please don't enable this for anything else!
     isUMDBundle && entry === 'react-art' && commonjs(),
     // Apply dead code elimination and/or minification.
-    isProduction &&
+    !sourcemap && isProduction &&
       closure(
         Object.assign({}, closureOptions, {
           // Don't let it create global variables in the browser.
@@ -421,9 +428,9 @@ function getPlugins(
       ),
     // HACK to work around the fact that Rollup isn't removing unused, pure-module imports.
     // Note that this plugin must be called after closure applies DCE.
-    isProduction && stripUnusedImports(pureExternalModules),
+    !sourcemap && isProduction && stripUnusedImports(pureExternalModules),
     // Add the whitespace back if necessary.
-    shouldStayReadable &&
+    !sourcemap && shouldStayReadable &&
       prettier({
         parser: 'babel',
         singleQuote: false,
@@ -431,7 +438,7 @@ function getPlugins(
         bracketSpacing: true,
       }),
     // License and haste headers, top-level `if` blocks.
-    {
+    !sourcemap && {
       renderChunk(source) {
         return Wrappers.wrapBundle(
           source,
@@ -443,7 +450,7 @@ function getPlugins(
       },
     },
     // Record bundle size.
-    sizes({
+    !sourcemap && sizes({
       getSize: (size, gzip) => {
         const currentSizes = Stats.currentBuildResults.bundleSizes;
         const recordIndex = currentSizes.findIndex(
