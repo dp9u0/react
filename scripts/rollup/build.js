@@ -450,7 +450,7 @@ function getPlugins(
       },
     },
     // Record bundle size.
-    !sourcemap && sizes({
+    sizes({
       getSize: (size, gzip) => {
         const currentSizes = Stats.currentBuildResults.bundleSizes;
         const recordIndex = currentSizes.findIndex(
